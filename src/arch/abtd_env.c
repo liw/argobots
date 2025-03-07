@@ -285,36 +285,33 @@ size_t ABTD_env_get_sys_pagesize(void)
         load_env_size("SYS_PAGE_SIZE", sys_page_size, 64, ABTD_ENV_SIZE_MAX));
 }
 
-size_t ABTD_env_get_thread_stacksize(void)
+static size_t ABTD_env_get_stacksize(const char *env, size_t default_stacksize)
 {
-    size_t default_thread_stacksize = ABT_CONFIG_DEFAULT_THREAD_STACKSIZE;
+    size_t stacksize = ABTU_roundup_size(load_env_size(env, default_stacksize,
+                                                       512, ABTD_ENV_SIZE_MAX),
+                                         ABT_CONFIG_STATIC_CACHELINE_SIZE);
     if (ABTD_env_get_stack_guard_mprotect(NULL)) {
-        /* Maximum 2 pages are used for mprotect(), so let's increase the
+        /* One page are used for mprotect(), so let's increase the
          * default stack size. */
         const size_t sys_page_size = ABTD_env_get_sys_pagesize();
-        default_thread_stacksize += sys_page_size * 2;
+        stacksize += sys_page_size;
     }
+    return stacksize;
+}
+
+size_t ABTD_env_get_thread_stacksize(void)
+{
     /* ABT_THREAD_STACKSIZE, ABT_ENV_THREAD_STACKSIZE */
-    return ABTU_roundup_size(load_env_size("THREAD_STACKSIZE",
-                                           default_thread_stacksize, 512,
-                                           ABTD_ENV_SIZE_MAX),
-                             ABT_CONFIG_STATIC_CACHELINE_SIZE);
+    return ABTD_env_get_stacksize("THREAD_STACKSIZE",
+                                  ABT_CONFIG_DEFAULT_THREAD_STACKSIZE);
 }
 
 size_t ABTD_env_get_sched_stacksize(void)
 {
-    size_t default_sched_stacksize = ABTD_SCHED_DEFAULT_STACKSIZE;
-    if (ABTD_env_get_stack_guard_mprotect(NULL)) {
-        /* Maximum 2 pages are used for mprotect(), so let's increase the
-         * default stack size. */
-        const size_t sys_page_size = ABTD_env_get_sys_pagesize();
-        default_sched_stacksize += sys_page_size * 2;
-    }
     /* ABT_SCHED_STACKSIZE, ABT_ENV_SCHED_STACKSIZE */
-    return ABTU_roundup_size(load_env_size("SCHED_STACKSIZE",
-                                           default_sched_stacksize, 512,
-                                           ABTD_ENV_SIZE_MAX),
-                             ABT_CONFIG_STATIC_CACHELINE_SIZE);
+    return ABTD_env_get_stacksize("SCHED_STACKSIZE",
+                                  ABTD_SCHED_DEFAULT_STACKSIZE) -
+           ABTD_env_get_sys_pagesize(); /* hack */
 }
 
 uint32_t ABTD_env_get_sched_event_freq(void)

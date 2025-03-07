@@ -2846,7 +2846,10 @@ ythread_create(ABTI_global *p_global, ABTI_local *p_local, ABTI_pool *p_pool,
          */
         if (ABTU_likely(p_attr->p_stack == NULL)) {
             const size_t default_stacksize = p_global->thread_stacksize;
-            const size_t stacksize = p_attr->stacksize;
+            size_t stacksize = p_attr->stacksize;
+            if (p_global->stack_guard_kind == ABTI_STACK_GUARD_MPROTECT ||
+                p_global->stack_guard_kind == ABTI_STACK_GUARD_MPROTECT_STRICT)
+                    stacksize += p_global->sys_page_size;
             if (ABTU_likely(stacksize == default_stacksize)) {
                 /* 1. A thread that uses a stack of a default size. */
                 abt_errno =

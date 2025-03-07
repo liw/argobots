@@ -254,14 +254,15 @@ ABTU_ret_err static inline int ABTI_mem_alloc_ythread_mempool_desc_stack_impl(
 #endif
 
 ABTU_ret_err static inline int ABTI_mem_alloc_ythread_malloc_desc_stack_impl(
-    size_t stacksize, ABTI_ythread **pp_ythread, void **pp_stacktop)
+    const ABTI_global *p_global, size_t stacksize, ABTI_ythread **pp_ythread,
+    void **pp_stacktop)
 {
     /* stacksize must be a multiple of ABT_CONFIG_STATIC_CACHELINE_SIZE. */
     size_t alloc_stacksize =
         ABTU_roundup_size(stacksize, ABT_CONFIG_STATIC_CACHELINE_SIZE);
     char *p_stack;
-    int abt_errno =
-        ABTU_malloc(alloc_stacksize + sizeof(ABTI_ythread), (void **)&p_stack);
+    int abt_errno = ABTU_memalign(p_global->sys_page_size,
+        alloc_stacksize + sizeof(ABTI_ythread), (void **)&p_stack);
     ABTI_CHECK_ERROR(abt_errno);
 
     *pp_stacktop = (void *)(p_stack + alloc_stacksize);
@@ -305,7 +306,8 @@ ABTI_mem_alloc_ythread_mempool_desc_stack(ABTI_global *p_global,
         } else {
             /* If an external thread allocates a stack, we use ABTU_malloc. */
             int abt_errno =
-                ABTI_mem_alloc_ythread_malloc_desc_stack_impl(stacksize,
+                ABTI_mem_alloc_ythread_malloc_desc_stack_impl(p_global,
+                                                              stacksize,
                                                               &p_ythread,
                                                               &p_stacktop);
             ABTI_CHECK_ERROR(abt_errno);
@@ -320,8 +322,8 @@ ABTI_mem_alloc_ythread_mempool_desc_stack(ABTI_global *p_global,
 #else
     void *p_stacktop;
     int abt_errno =
-        ABTI_mem_alloc_ythread_malloc_desc_stack_impl(stacksize, &p_ythread,
-                                                      &p_stacktop);
+        ABTI_mem_alloc_ythread_malloc_desc_stack_impl(p_global, stacksize,
+                                                      &p_ythread, &p_stacktop);
     ABTI_CHECK_ERROR(abt_errno);
     p_ythread->thread.type = ABTI_THREAD_TYPE_MEM_MALLOC_DESC_STACK;
     ABTI_mem_register_stack(p_global, p_stacktop, stacksize, ABT_TRUE);
@@ -347,8 +349,8 @@ ABTU_ret_err static inline int ABTI_mem_alloc_ythread_malloc_desc_stack(
     ABTI_ythread *p_ythread;
     void *p_stacktop;
     int abt_errno =
-        ABTI_mem_alloc_ythread_malloc_desc_stack_impl(stacksize, &p_ythread,
-                                                      &p_stacktop);
+        ABTI_mem_alloc_ythread_malloc_desc_stack_impl(p_global, stacksize,
+                                                      &p_ythread, &p_stacktop);
     ABTI_CHECK_ERROR(abt_errno);
 
     /* Initialize the context. */
